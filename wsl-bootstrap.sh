@@ -28,6 +28,14 @@ source ~/.bashrc
 echo "🚀 Installing Claude Code CLI..."
 npm install -g @anthropic-ai/claude-code || echo "⚠️ Claude Code install failed, check permissions or API access."
 
+echo "💙 Installing PowerShell..."
+# Install PowerShell using Microsoft's package repository (already added above)
+sudo apt install -y powershell
+
+# Verify installation
+echo "🧪 Checking PowerShell version..."
+pwsh --version || echo "⚠️ PowerShell not installed correctly."
+
 echo "📦 Installing .NET SDK 9.0 Preview..."
 
 # Add Microsoft package feed
