@@ -1,5 +1,36 @@
 #!/usr/bin/env pwsh
 # Interactive diff review with Claude Code
+#
+# Configuration:
+# The script creates a config file at ~/.claude-diff-config.json on first run.
+# Edit this file to customize WSL distribution and Claude path.
+# Example: {"wsl_distro": "ubuntu", "claude_path": "/home/username/.nvm/versions/node/v22.16.0/bin/claude"}
+
+# Load or create configuration
+$homeDir = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
+$configPath = Join-Path $homeDir ".claude-diff-config.json"
+$defaultConfig = @{
+    wsl_distro = "ubuntu"
+    claude_path = "/home/asbjornb/.nvm/versions/node/v22.16.0/bin/claude"
+}
+
+if (Test-Path $configPath) {
+    try {
+        $config = Get-Content $configPath | ConvertFrom-Json
+    } catch {
+        Write-Host "⚠️  Invalid config file, using defaults" -ForegroundColor Yellow
+        $config = $defaultConfig
+    }
+} else {
+    # Create default config file
+    $config = $defaultConfig
+    $config | ConvertTo-Json | Out-File $configPath -Encoding UTF8
+    Write-Host "📝 Created config file at $configPath" -ForegroundColor Cyan
+    Write-Host "   Edit this file to customize WSL distro and Claude path" -ForegroundColor Gray
+}
+
+$WSL_DISTRO = $config.wsl_distro
+$CLAUDE_PATH = $config.claude_path
 Write-Host "=== Diff Review Setup ===" -ForegroundColor Green
 
 # Validate we're in a git repository
@@ -124,15 +155,22 @@ if ($runningOnWindows) {
     $diff | Out-File -FilePath $tempFile -Encoding UTF8
     
     try {
-        # TODO: Add config file to specify WSL distro (default: ubuntu)
-        # For now, hardcode to ubuntu - change to "wsl" if you use default WSL
-        # Use full path to claude to avoid PATH issues
+        # Use configured WSL distro and Claude path
         $wslTempPath = $tempFile.Replace('\', '/').Replace('C:', '/mnt/c')
-        wsl -d ubuntu bash -c "cat '$wslTempPath' | /home/asbjornb/.nvm/versions/node/v22.16.0/bin/claude -p `"$escapedPrompt`""
+        
+        if ($WSL_DISTRO -eq "default") {
+            wsl bash -c "cat '$wslTempPath' | $CLAUDE_PATH -p `"$escapedPrompt`""
+        } else {
+            wsl -d $WSL_DISTRO bash -c "cat '$wslTempPath' | $CLAUDE_PATH -p `"$escapedPrompt`""
+        }
     } finally {
         Remove-Item $tempFile -ErrorAction SilentlyContinue
     }
 } else {
-    # On Linux/WSL, run directly
-    $diff | claude -p $reviewPrompt
+    # On Linux/WSL, run directly (ignore WSL config)
+    if ($CLAUDE_PATH -and (Test-Path $CLAUDE_PATH)) {
+        $diff | & $CLAUDE_PATH -p $reviewPrompt
+    } else {
+        $diff | claude -p $reviewPrompt
+    }
 }
