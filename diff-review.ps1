@@ -135,10 +135,12 @@ if ($lineCount -gt 300) {
 }
 
 Write-Host ""
-Write-Host "Show Claude's thinking process?" -ForegroundColor Yellow
-Write-Host "This shows step-by-step reasoning and file exploration (slower but more detailed)" -ForegroundColor Gray
-$thinkingChoice = Read-Host "Show thinking? (y/N)"
-$showThinking = $thinkingChoice -match '^y(es)?$'
+Write-Host "Review mode:" -ForegroundColor Yellow
+Write-Host "1. Quick review - Just the final analysis (faster)" -ForegroundColor Cyan
+Write-Host "2. Detailed review - Show step-by-step reasoning and file exploration" -ForegroundColor Cyan
+Write-Host ""
+$reviewMode = Read-Host "Mode (1 or 2, default: 1)"
+$showThinking = $reviewMode -eq "2"
 
 Write-Host ""
 Write-Host "Add context about your changes (optional):" -ForegroundColor Yellow
