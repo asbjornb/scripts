@@ -17,8 +17,26 @@ $defaultConfig = @{
 if (Test-Path $configPath) {
     try {
         $config = Get-Content $configPath | ConvertFrom-Json
+        # Validate config values to prevent injection
+        if ($config.wsl_distro -notmatch '^[a-zA-Z0-9._-]+$|^default$') {
+            Write-Host "Warning: Invalid WSL distro in config, using default" -ForegroundColor Yellow
+            $config.wsl_distro = $defaultConfig.wsl_distro
+        }
+        
+        # Validate Claude path more robustly
+        if (-not $config.claude_path -or -not (Test-Path $config.claude_path -IsValid)) {
+            Write-Host "Warning: Invalid Claude path in config, using default" -ForegroundColor Yellow
+            $config.claude_path = $defaultConfig.claude_path
+        } else {
+            # Additional security: ensure it's not a directory and looks like an executable
+            $claudeFileName = Split-Path $config.claude_path -Leaf
+            if ($claudeFileName -notmatch '^claude(\.(exe|sh|js))?$') {
+                Write-Host "Warning: Claude path doesn't look like Claude executable, using default" -ForegroundColor Yellow
+                $config.claude_path = $defaultConfig.claude_path
+            }
+        }
     } catch {
-        Write-Host "⚠️  Invalid config file, using defaults" -ForegroundColor Yellow
+        Write-Host "Warning: Invalid config file, using defaults" -ForegroundColor Yellow
         $config = $defaultConfig
     }
 } else {
@@ -158,11 +176,24 @@ if ($runningOnWindows) {
         # Use configured WSL distro and Claude path
         $wslTempPath = $tempFile.Replace('\', '/').Replace('C:', '/mnt/c')
         
+        # Create a temp file for the prompt to avoid command injection
+        $promptTempFile = [System.IO.Path]::GetTempFileName()
+        $reviewPrompt | Out-File -FilePath $promptTempFile -Encoding UTF8
+        $wslPromptPath = $promptTempFile.Replace('\', '/').Replace('C:', '/mnt/c')
+        
+        # Properly escape the Claude path for bash execution
+        $escapedClaudePath = $CLAUDE_PATH -replace "'", "'\`"'\`"'"  # Escape single quotes
+        
+        # Create a secure command using printf to avoid injection
+        $bashCommand = "cat '$wslTempPath' | '$escapedClaudePath' -p `"`$(cat '$wslPromptPath')`""
+        
         if ($WSL_DISTRO -eq "default") {
-            wsl bash -c "cat '$wslTempPath' | $CLAUDE_PATH -p `"$escapedPrompt`""
+            wsl bash -c $bashCommand
         } else {
-            wsl -d $WSL_DISTRO bash -c "cat '$wslTempPath' | $CLAUDE_PATH -p `"$escapedPrompt`""
+            wsl -d $WSL_DISTRO bash -c $bashCommand
         }
+        
+        Remove-Item $promptTempFile -ErrorAction SilentlyContinue
     } finally {
         Remove-Item $tempFile -ErrorAction SilentlyContinue
     }
