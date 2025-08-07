@@ -1,5 +1,15 @@
 # Interactive diff review with Claude Code
 Write-Host "=== Diff Review Setup ===" -ForegroundColor Green
+
+# Validate we're in a git repository
+$gitDir = git rev-parse --show-toplevel 2>$null
+if (-not $gitDir) {
+    Write-Host ""
+    Write-Host "❌ Not in a git repository" -ForegroundColor Red
+    Write-Host "Please navigate to a git repository and try again." -ForegroundColor Gray
+    exit 1
+}
+Write-Host "Repository: $gitDir" -ForegroundColor Gray
 Write-Host ""
 
 # Choose what to review
@@ -29,7 +39,8 @@ if ($choice -eq "2") {
         }
     }
     $reviewType = "all uncommitted changes (staged + unstaged + untracked)"
-} else {
+}
+else {
     $defaultBranch = git symbolic-ref refs/remotes/origin/HEAD 2>$null | Split-Path -Leaf
     if (-not $defaultBranch) { $defaultBranch = "main" }
     $base = git merge-base $defaultBranch HEAD
@@ -52,7 +63,8 @@ $context = Read-Host
 # Build the review prompt
 $contextSection = if ($context) {
     "`n`nContext: $context`n"
-} else { "" }
+}
+else { "" }
 
 $reviewPrompt = @"
 Please review this git diff as a merge request.$contextSection
