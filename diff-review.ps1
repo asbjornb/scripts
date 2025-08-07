@@ -10,6 +10,17 @@ if (-not $gitDir) {
     exit 1
 }
 Write-Host "Repository: $gitDir" -ForegroundColor Gray
+
+# Check if claude is available
+$claudeAvailable = Get-Command claude -ErrorAction SilentlyContinue
+if (-not $claudeAvailable) {
+    Write-Host ""
+    Write-Host "❌ Claude Code not found" -ForegroundColor Red
+    Write-Host "Claude Code is required for diff review." -ForegroundColor Gray
+    Write-Host "If you're on Windows, try running this from WSL." -ForegroundColor Gray
+    Write-Host "Otherwise, install Claude Code: https://docs.anthropic.com/claude/docs" -ForegroundColor Gray
+    exit 1
+}
 Write-Host ""
 
 # Choose what to review
