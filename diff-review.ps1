@@ -135,6 +135,12 @@ if ($lineCount -gt 300) {
 }
 
 Write-Host ""
+Write-Host "Show Claude's thinking process?" -ForegroundColor Yellow
+Write-Host "This shows step-by-step reasoning and file exploration (slower but more detailed)" -ForegroundColor Gray
+$thinkingChoice = Read-Host "Show thinking? (y/N)"
+$showThinking = $thinkingChoice -match '^y(es)?$'
+
+Write-Host ""
 Write-Host "Add context about your changes (optional):" -ForegroundColor Yellow
 Write-Host "What is the intended purpose of these changes?" -ForegroundColor Gray
 $context = Read-Host
@@ -193,8 +199,9 @@ if ($runningOnWindows) {
         # Properly escape the Claude path for bash execution
         $escapedClaudePath = $CLAUDE_PATH -replace "'", "'\`"'\`"'"  # Escape single quotes
         
-        # Create a secure command using printf to avoid injection
-        $bashCommand = "cat '$wslTempPath' | '$escapedClaudePath' -p `"`$(cat '$wslPromptPath')`""
+        # Create a secure command - add -p flag only if not showing thinking
+        $claudeFlags = if ($showThinking) { "" } else { "-p" }
+        $bashCommand = "cat '$wslTempPath' | '$escapedClaudePath' $claudeFlags `"`$(cat '$wslPromptPath')`""
         
         if ($WSL_DISTRO -eq "default") {
             wsl bash -c $bashCommand
@@ -211,10 +218,19 @@ if ($runningOnWindows) {
 }
 else {
     # On Linux/WSL, run directly (ignore WSL config)
-    if ($CLAUDE_PATH -and (Test-Path $CLAUDE_PATH)) {
-        $diff | & $CLAUDE_PATH -p $reviewPrompt
-    }
-    else {
-        $diff | claude -p $reviewPrompt
+    if ($showThinking) {
+        if ($CLAUDE_PATH -and (Test-Path $CLAUDE_PATH)) {
+            $diff | & $CLAUDE_PATH $reviewPrompt
+        }
+        else {
+            $diff | claude $reviewPrompt
+        }
+    } else {
+        if ($CLAUDE_PATH -and (Test-Path $CLAUDE_PATH)) {
+            $diff | & $CLAUDE_PATH -p $reviewPrompt
+        }
+        else {
+            $diff | claude -p $reviewPrompt
+        }
     }
 }
