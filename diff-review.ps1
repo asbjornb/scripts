@@ -12,15 +12,17 @@ if (-not $gitDir) {
 }
 Write-Host "Repository: $gitDir" -ForegroundColor Gray
 
-# Check if claude is available
-$claudeAvailable = Get-Command claude -ErrorAction SilentlyContinue
-if (-not $claudeAvailable) {
-    Write-Host ""
-    Write-Host "❌ Claude Code not found" -ForegroundColor Red
-    Write-Host "Claude Code is required for diff review." -ForegroundColor Gray
-    Write-Host "If you're on Windows, try running this from WSL." -ForegroundColor Gray
-    Write-Host "Otherwise, install Claude Code: https://docs.anthropic.com/claude/docs" -ForegroundColor Gray
-    exit 1
+# Check if claude is available (skip on Windows since we'll use WSL)
+$runningOnWindows = $env:OS -eq "Windows_NT"
+if (-not $runningOnWindows) {
+    $claudeAvailable = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $claudeAvailable) {
+        Write-Host ""
+        Write-Host "❌ Claude Code not found" -ForegroundColor Red
+        Write-Host "Claude Code is required for diff review." -ForegroundColor Gray
+        Write-Host "Install Claude Code: https://docs.anthropic.com/claude/docs" -ForegroundColor Gray
+        exit 1
+    }
 }
 Write-Host ""
 
@@ -107,4 +109,30 @@ Provide constructive feedback and suggestions for improvement.
 
 Write-Host ""
 Write-Host "Reviewing $reviewType with Claude..." -ForegroundColor Green
-$diff | claude -p $reviewPrompt
+
+# Use the Windows detection from earlier
+
+if ($runningOnWindows) {
+    # On Windows, pipe through WSL to run claude
+    Write-Host "(Running Claude through WSL...)" -ForegroundColor Gray
+    
+    # Escape the prompt for WSL command
+    $escapedPrompt = $reviewPrompt -replace '"', '\"' -replace '`', '\`'
+    
+    # Create a temp file for the diff to avoid command line length limits
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    $diff | Out-File -FilePath $tempFile -Encoding UTF8
+    
+    try {
+        # TODO: Add config file to specify WSL distro (default: ubuntu)
+        # For now, hardcode to ubuntu - change to "wsl" if you use default WSL
+        # Use full path to claude to avoid PATH issues
+        $wslTempPath = $tempFile.Replace('\', '/').Replace('C:', '/mnt/c')
+        wsl -d ubuntu bash -c "cat '$wslTempPath' | /home/asbjornb/.nvm/versions/node/v22.16.0/bin/claude -p `"$escapedPrompt`""
+    } finally {
+        Remove-Item $tempFile -ErrorAction SilentlyContinue
+    }
+} else {
+    # On Linux/WSL, run directly
+    $diff | claude -p $reviewPrompt
+}
