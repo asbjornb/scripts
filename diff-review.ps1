@@ -143,7 +143,7 @@ $contextSection = if ($context) {
 else { "" }
 
 $reviewPrompt = @"
-Please review this git diff as a merge request.$contextSection
+Please review this git diff as a merge request. You have access to the full repository context - feel free to examine related files, understand the broader codebase structure, and check how these changes fit into the overall architecture.$contextSection
 
 Focus on:
 1. Code quality and best practices
@@ -152,6 +152,15 @@ Focus on:
 4. Performance implications
 5. Documentation needs
 6. Test coverage gaps
+7. Integration with existing code (check related files if needed)
+8. Consistency with codebase patterns and conventions
+
+Feel free to:
+- Examine files that are imported/referenced in the diff
+- Check for similar patterns elsewhere in the codebase
+- Verify that interfaces and contracts are properly maintained
+- Look at tests related to the changed functionality
+- Review documentation that might need updates
 
 Provide constructive feedback and suggestions for improvement.
 "@
