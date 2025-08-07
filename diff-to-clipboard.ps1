@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 $defaultBranch = git symbolic-ref refs/remotes/origin/HEAD 2>$null | Split-Path -Leaf
 if (-not $defaultBranch) { $defaultBranch = "main" }
 

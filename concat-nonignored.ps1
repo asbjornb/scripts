@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 param (
     [string]$OutputFile = "combined.txt"
 )

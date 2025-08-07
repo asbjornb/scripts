@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 # Interactive script browser
 param([string]$Filter = "")
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 # Interactive diff review with Claude Code
 Write-Host "=== Diff Review Setup ===" -ForegroundColor Green
 
