@@ -66,6 +66,19 @@ if (-not $diff) {
     exit
 }
 
+# Check diff size and warn if large
+$lineCount = ($diff -split "`n").Count
+if ($lineCount -gt 300) {
+    Write-Host ""
+    Write-Host "⚠️  Large diff detected: $lineCount lines" -ForegroundColor Yellow
+    $confirm = Read-Host "Continue with review of $lineCount lines? (y/N)"
+    if ($confirm -notmatch '^y(es)?$') {
+        Write-Host "Review cancelled" -ForegroundColor Gray
+        exit
+    }
+    Write-Host ""
+}
+
 Write-Host ""
 Write-Host "Add context about your changes (optional):" -ForegroundColor Yellow
 Write-Host "What is the intended purpose of these changes?" -ForegroundColor Gray
