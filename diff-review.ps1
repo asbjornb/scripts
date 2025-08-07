@@ -10,7 +10,7 @@
 $homeDir = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
 $configPath = Join-Path $homeDir ".claude-diff-config.json"
 $defaultConfig = @{
-    wsl_distro = "ubuntu"
+    wsl_distro  = "ubuntu"
     claude_path = "/home/asbjornb/.nvm/versions/node/v22.16.0/bin/claude"
 }
 
@@ -27,7 +27,8 @@ if (Test-Path $configPath) {
         if (-not $config.claude_path -or -not (Test-Path $config.claude_path -IsValid)) {
             Write-Host "Warning: Invalid Claude path in config, using default" -ForegroundColor Yellow
             $config.claude_path = $defaultConfig.claude_path
-        } else {
+        }
+        else {
             # Additional security: ensure it's not a directory and looks like an executable
             $claudeFileName = Split-Path $config.claude_path -Leaf
             if ($claudeFileName -notmatch '^claude(\.(exe|sh|js))?$') {
@@ -35,11 +36,13 @@ if (Test-Path $configPath) {
                 $config.claude_path = $defaultConfig.claude_path
             }
         }
-    } catch {
+    }
+    catch {
         Write-Host "Warning: Invalid config file, using defaults" -ForegroundColor Yellow
         $config = $defaultConfig
     }
-} else {
+}
+else {
     # Create default config file
     $config = $defaultConfig
     $config | ConvertTo-Json | Out-File $configPath -Encoding UTF8
@@ -143,7 +146,7 @@ $contextSection = if ($context) {
 else { "" }
 
 $reviewPrompt = @"
-Please review this git diff as a merge request. You have access to the full repository context - feel free to examine related files, understand the broader codebase structure, and check how these changes fit into the overall architecture.$contextSection
+Please review this git diff as a merge request. It was made by my developer. You have access to the full repository context - feel free to examine related files, understand the broader codebase structure, and check how these changes fit into the overall architecture.$contextSection
 
 Focus on:
 1. Code quality and best practices
@@ -174,9 +177,6 @@ if ($runningOnWindows) {
     # On Windows, pipe through WSL to run claude
     Write-Host "(Running Claude through WSL...)" -ForegroundColor Gray
     
-    # Escape the prompt for WSL command
-    $escapedPrompt = $reviewPrompt -replace '"', '\"' -replace '`', '\`'
-    
     # Create a temp file for the diff to avoid command line length limits
     $tempFile = [System.IO.Path]::GetTempFileName()
     $diff | Out-File -FilePath $tempFile -Encoding UTF8
@@ -198,19 +198,23 @@ if ($runningOnWindows) {
         
         if ($WSL_DISTRO -eq "default") {
             wsl bash -c $bashCommand
-        } else {
+        }
+        else {
             wsl -d $WSL_DISTRO bash -c $bashCommand
         }
         
         Remove-Item $promptTempFile -ErrorAction SilentlyContinue
-    } finally {
+    }
+    finally {
         Remove-Item $tempFile -ErrorAction SilentlyContinue
     }
-} else {
+}
+else {
     # On Linux/WSL, run directly (ignore WSL config)
     if ($CLAUDE_PATH -and (Test-Path $CLAUDE_PATH)) {
         $diff | & $CLAUDE_PATH -p $reviewPrompt
-    } else {
+    }
+    else {
         $diff | claude -p $reviewPrompt
     }
 }
