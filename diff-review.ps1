@@ -78,15 +78,95 @@ if (-not $runningOnWindows) {
 }
 Write-Host ""
 
-# Choose what to review
-Write-Host "What do you want to review?" -ForegroundColor Yellow
-Write-Host "1. Branch changes (vs main/master)" -ForegroundColor Cyan
-Write-Host "2. Uncommitted changes" -ForegroundColor Cyan
-Write-Host ""
-$choice = Read-Host "Choice (1 or 2)"
+# Compact review options
+Write-Host "Options: [Enter]=defaults, 1/2=uncommitted/branch, 3/4=quick/detailed, +text=context, h=help" -ForegroundColor Yellow
 
-# Get the diff
-if ($choice -eq "2") {
+$userInput = Read-Host "Choice"
+
+# Show help if requested
+if ($userInput -eq "h" -or $userInput -eq "help") {
+    Write-Host ""
+    Write-Host "=== Diff Review Help ===" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Defaults (just press Enter):" -ForegroundColor Gray
+    Write-Host "  • Uncommitted changes" -ForegroundColor Gray  
+    Write-Host "  • Quick review mode" -ForegroundColor Gray
+    Write-Host "  • No context" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Usage Examples:" -ForegroundColor Cyan
+    Write-Host "  [Enter]                    Use all defaults" -ForegroundColor Green
+    Write-Host "  2                          Branch changes, quick mode" -ForegroundColor Cyan
+    Write-Host "  4                          Uncommitted, detailed mode" -ForegroundColor Cyan
+    Write-Host "  24                         Branch changes, detailed mode" -ForegroundColor Cyan  
+    Write-Host "  4This adds user auth       Uncommitted, detailed, with context" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Options:" -ForegroundColor Yellow
+    Write-Host "  1 = Uncommitted changes (default)" -ForegroundColor Gray
+    Write-Host "  2 = Branch changes vs main/master" -ForegroundColor Gray
+    Write-Host "  3 = Quick review - just results (default)" -ForegroundColor Gray
+    Write-Host "  4 = Detailed review - show Claude's thinking" -ForegroundColor Gray
+    Write-Host "  Text after numbers = context description" -ForegroundColor Gray
+    Write-Host ""
+    
+    $userInput = Read-Host "Choice"
+}
+
+# Parse the input using regex for robustness
+$reviewBranch = $false # default (uncommitted changes)
+$showThinking = $false # default
+$context = ""
+
+if ([string]::IsNullOrWhiteSpace($userInput)) {
+    # Use all defaults
+} else {
+    # Use regex to parse: optional digit for changes, optional digit for mode, optional text
+    if ($userInput -match '^([12])?([34])?(.*?)$') {
+        $changesType = $matches[1]
+        $reviewMode = $matches[2] 
+        $contextText = $matches[3]
+        
+        # Validate and apply changes type
+        if ($changesType -eq "2") {
+            $reviewBranch = $true
+        } elseif ($changesType -eq "1") {
+            $reviewBranch = $false
+        } elseif ($changesType -and $changesType -notin @("1", "2")) {
+            Write-Host "Warning: Invalid changes type '$changesType', using default (uncommitted)" -ForegroundColor Yellow
+        }
+        
+        # Validate and apply review mode
+        if ($reviewMode -eq "4") {
+            $showThinking = $true
+        } elseif ($reviewMode -eq "3") {
+            $showThinking = $false
+        } elseif ($reviewMode -and $reviewMode -notin @("3", "4")) {
+            Write-Host "Warning: Invalid review mode '$reviewMode', using default (quick)" -ForegroundColor Yellow
+        }
+        
+        # Sanitize context to prevent injection
+        $context = $contextText.Trim()
+        if ($context.Length -gt 500) {
+            Write-Host "Warning: Context truncated to 500 characters" -ForegroundColor Yellow
+            $context = $context.Substring(0, 500)
+        }
+        # Remove potentially dangerous characters
+        $context = $context -replace '[`$\\"]', ''
+        
+    } else {
+        Write-Host "Warning: Invalid input format, using defaults" -ForegroundColor Yellow
+    }
+}
+
+# Get the diff based on selection
+if ($reviewBranch) {
+    $defaultBranch = git symbolic-ref refs/remotes/origin/HEAD 2>$null | Split-Path -Leaf
+    if (-not $defaultBranch) { $defaultBranch = "main" }
+    $base = git merge-base $defaultBranch HEAD
+    
+    # Show only committed changes on this branch
+    $diff = git diff $base HEAD
+    $reviewType = "branch changes (vs $defaultBranch)"
+} else {
     # Show all uncommitted changes: staged + unstaged + untracked
     $stagedDiff = git diff --cached
     $unstagedDiff = git diff
@@ -105,15 +185,6 @@ if ($choice -eq "2") {
         }
     }
     $reviewType = "all uncommitted changes (staged + unstaged + untracked)"
-}
-else {
-    $defaultBranch = git symbolic-ref refs/remotes/origin/HEAD 2>$null | Split-Path -Leaf
-    if (-not $defaultBranch) { $defaultBranch = "main" }
-    $base = git merge-base $defaultBranch HEAD
-    
-    # Show only committed changes on this branch
-    $diff = git diff $base HEAD
-    $reviewType = "branch changes (vs $defaultBranch)"
 }
 
 if (-not $diff) {
@@ -134,18 +205,6 @@ if ($lineCount -gt 300) {
     Write-Host ""
 }
 
-Write-Host ""
-Write-Host "Review mode:" -ForegroundColor Yellow
-Write-Host "1. Quick review - Just the final analysis (faster)" -ForegroundColor Cyan
-Write-Host "2. Detailed review - Show step-by-step reasoning and file exploration" -ForegroundColor Cyan
-Write-Host ""
-$reviewMode = Read-Host "Mode (1 or 2, default: 1)"
-$showThinking = $reviewMode -eq "2"
-
-Write-Host ""
-Write-Host "Add context about your changes (optional):" -ForegroundColor Yellow
-Write-Host "What is the intended purpose of these changes?" -ForegroundColor Gray
-$context = Read-Host
 
 # Build the review prompt
 $contextSection = if ($context) {
