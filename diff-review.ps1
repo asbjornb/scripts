@@ -54,6 +54,10 @@ $WSL_DISTRO = $config.wsl_distro
 $CLAUDE_PATH = $config.claude_path
 Write-Host "=== Diff Review Setup ===" -ForegroundColor Green
 
+# Suppress line ending warnings for this session
+$env:GIT_CONFIG_GLOBAL = ""
+git config --local core.safecrlf false 2>$null
+
 # Validate we're in a git repository
 $gitDir = git rev-parse --show-toplevel 2>$null
 if (-not $gitDir) {
