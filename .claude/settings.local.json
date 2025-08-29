@@ -5,7 +5,9 @@
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(dos2unix:*)",
       "Bash(sed:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(claude --version)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
