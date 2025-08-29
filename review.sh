@@ -197,9 +197,9 @@ $DIFF"
 
 echo "Reviewing $DESCRIPTION with Claude..."
 
-# Run Claude with the diff included in the prompt in plan mode (read-only access)
+# Run Claude with the diff included in the prompt
 if [[ "$MODE" == "detailed" ]]; then
-    "$CLAUDE_PATH" --permission-mode plan "$REVIEW_PROMPT"
+    "$CLAUDE_PATH" "$REVIEW_PROMPT"
 else
-    "$CLAUDE_PATH" -p --permission-mode plan "$REVIEW_PROMPT"
+    "$CLAUDE_PATH" -p "$REVIEW_PROMPT"
 fi
